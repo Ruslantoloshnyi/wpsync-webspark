@@ -33,8 +33,32 @@ function add_webp_support($mimes) {
 }
 add_filter('mime_types', 'add_webp_support');
 
+// Register a plugin activation hook
+register_activation_hook(__FILE__, 'wpsync_webspark_activation');
+
+// Register a plugin deactivation hook
+register_deactivation_hook(__FILE__, 'wpsync_webspark_deactivation');
+
+// Register cron event to execute every hour
+add_action('wpsync_webspark_hourly_event', 'wpsync_webspark_hourly_cron');
+
+// Plugin activation function
 function wpsync_webspark_activation() {
 
+    // Cron event to run every hour
+    if (!wp_next_scheduled('wpsync_webspark_hourly_event')) {
+        wp_schedule_event(time(), 'hourly', 'wpsync_webspark_hourly_event');
+    }
+}
+
+// Plugin deactivation function
+function wpsync_webspark_deactivation() {
+    // Delete cron event when deactivate plugin
+    wp_clear_scheduled_hook('wpsync_webspark_hourly_event');
+}
+
+// Function to be called when the cron event every hour
+function wpsync_webspark_hourly_cron() {
     $api_url = 'https://wp.webspark.dev/wp-api/products';
     $max_count = 5;
     $count = 1;
@@ -47,14 +71,14 @@ function wpsync_webspark_activation() {
 
         // Check the success of the request
         if (!is_wp_error($response)) {
-            break; // Break the loop if the request was successful
+            break; 
         }
 
         $count++;
     } while ($count <= $max_count);
 
     if (is_wp_error($response)) {
-        return; // Exit the function if all attempts failed
+        return; // Exit the function if all attempts fail
     }
 
     // Get the response body
@@ -63,12 +87,12 @@ function wpsync_webspark_activation() {
     // Convert JSON to Data Array
     $data = json_decode($body, true);
 
-    // Check the data has been successfully converted
+    // Check Successful Data Conversion
     if (!$data || !isset($data['error']) || $data['error']) {
         return;
     }
 
-    // Get an array of products from the data
+    // Get an array of products from data
     $products = isset($data['data']) ? $data['data'] : [];
 
     // Including the necessary WooCommerce files
@@ -77,7 +101,7 @@ function wpsync_webspark_activation() {
     }
     if (!class_exists('WC_Product_Simple')) {
         include_once WC_ABSPATH . 'includes/class-wc-product-simple.php';
-    }   
+    }
 
     // Get all products from the database
     $existing_products = get_posts(array(
@@ -89,29 +113,29 @@ function wpsync_webspark_activation() {
         $existing_product_id = $existing_product->ID;
         $existing_sku = get_post_meta($existing_product_id, '_sku', true);
 
-       // Check if the SKU exists in the API data
-       $product_exists = false;
-       foreach ($products as $product) {
-           if ($product['sku'] === $existing_sku) {
-               $product_exists = true;
-               break;
-           }
-       }
+        // Check if the SKU exists in the API data
+        $product_exists = false;
+        foreach ($products as $product) {
+            if ($product['sku'] === $existing_sku) {
+                $product_exists = true;
+                break;
+            }
+        }
 
-       if (!$product_exists) {
-           // Product not found in API data, delete from the database
-           wp_delete_post($existing_product_id, true);
-       }
+        if (!$product_exists) {
+            // Product not found in API data, delete from database
+            wp_delete_post($existing_product_id, true);
+        }
     }
 
     foreach ($products as $product_data) {
         $sku = $product_data['sku'];
 
-        // Checking if the product has already been added to the database
+        // Check if the product has already been added to the database
         $existing_product_id = wc_get_product_id_by_sku($sku);
 
         if ($existing_product_id) {
-            // The product is already written to the database, get the product object
+            // The product has already been written to the database, get the product object
             $existing_product = wc_get_product($existing_product_id);
 
             // update the characteristics of the product
@@ -119,14 +143,14 @@ function wpsync_webspark_activation() {
             $existing_product->set_description($product_data['description']);
             $existing_product->set_regular_price($product_data['price']);
             $existing_product->set_stock_quantity($product_data['in_stock']);
-            
+
             $existing_product->save();
         } else {
 
             // The product has not yet been added to the database, create a new product object
             $product = new WC_Product_Simple();
 
-            // Set product property values from the $product_data array
+            // Set product properties from $product_data
             $product->set_name($product_data['name']);
             $product->set_description($product_data['description']);
             $product->set_regular_price($product_data['price']);
@@ -140,12 +164,11 @@ function wpsync_webspark_activation() {
                     $product->set_image_id($attachment_id);
                 }
             }
-            
+
             $product->save();
         }
     }
 }
-register_activation_hook(__FILE__, 'wpsync_webspark_activation');
 
 // Getting the Path to the WordPress Downloads Directory
 function get_upload_dir() {
