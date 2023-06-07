@@ -26,18 +26,6 @@ Author: Ruslan Toloshnyi
 
 <?php
 defined('ABSPATH') || exit;
-define('WP_SYNC__PLUGIN_DIR', plugin_dir_path(__FILE__));
-
-// Register plugin page
-function wp_sync_register_menu() {
-  add_menu_page('wp sync', 'Wp sync', 'manage_options', 'wp-sync', 'wp_sync_page', 'dashicons-controls-play');
-}
-add_action('admin_menu', 'wp_sync_register_menu');
-
-//Connect plugin page HTML
-function wp_sync_page() {
-  require_once(WP_SYNC__PLUGIN_DIR . 'templates/main-page.php');
-}
 
 function add_webp_support($mimes) {
     $mimes['webp'] = 'image/webp';
@@ -48,15 +36,25 @@ add_filter('mime_types', 'add_webp_support');
 function wpsync_webspark_activation() {
 
     $api_url = 'https://wp.webspark.dev/wp-api/products';
+    $max_count = 5;
+    $count = 1;
 
-    set_time_limit(60);
+    set_time_limit(3000);
 
-    // Get JSON data from API
-    $response = wp_remote_get($api_url);
+    do {
+        // Get JSON data from API
+        $response = wp_remote_get($api_url);
 
-    // Check the success of the request
+        // Check the success of the request
+        if (!is_wp_error($response)) {
+            break; // Break the loop if the request was successful
+        }
+
+        $count++;
+    } while ($count <= $max_count);
+
     if (is_wp_error($response)) {
-        return;
+        return; // Exit the function if all attempts failed
     }
 
     // Get the response body
