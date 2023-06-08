@@ -59,7 +59,9 @@ function wpsync_webspark_deactivation() {
 
 // Function to be called when the cron event every hour
 function wpsync_webspark_hourly_cron() {
+
     $api_url = 'https://wp.webspark.dev/wp-api/products';
+
     $max_count = 5;
     $count = 1;
 
@@ -84,10 +86,10 @@ function wpsync_webspark_hourly_cron() {
     // Get the response body
     $body = wp_remote_retrieve_body($response);
 
-    // Convert JSON to Data Array
+    // Convert JSON to data array
     $data = json_decode($body, true);
 
-    // Check Successful Data Conversion
+    // Check successful data conversion
     if (!$data || !isset($data['error']) || $data['error']) {
         return;
     }
@@ -170,28 +172,28 @@ function wpsync_webspark_hourly_cron() {
     }
 }
 
-// Getting the Path to the WordPress Downloads Directory
-function get_upload_dir() {
+// Getting the path to the WordPress downloads directory
+function wpsync_webspark_get_upload_dir() {
     $upload_dir = wp_upload_dir();
     return $upload_dir['path'];
 }
 
 // get image data from url
-function get_image_data($image_url) {
+function wpsync_webspark_get_image_data($image_url) {
     $image_data = file_get_contents($image_url);
     return $image_data;
 }
 
 // Create image file
-function create_image_file($upload_dir, $image_data) {
+function wpsync_webspark_create_image_file($upload_dir, $image_data) {
     $filename = uniqid() . '.webp'; // Generating a unique filename
     $file = $upload_dir . '/' . $filename;
     file_put_contents($file, $image_data);
     return $file;
 }
 
-// Add an Image to the WordPress Media Library
-function add_image_to_media_library($file) {
+// Add image to the WordPress media library
+function wpsync_webspark_add_image_to_media_library($file) {
     $attachment = array(
         'post_mime_type' => 'image/webp',
         'post_title'     => sanitize_file_name(basename($file)),
